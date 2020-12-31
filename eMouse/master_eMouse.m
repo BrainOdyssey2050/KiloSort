@@ -1,12 +1,12 @@
 useGPU = 1; % do you have a GPU? Kilosorting 1000sec of 32chan simulated data takes 55 seconds on gtx 1080 + M2 SSD.
 
-fpath    = 'C:\DATA\Spikes\eMouse\'; % where on disk do you want the simulation? ideally and SSD...
+fpath    = 'C:\SpikeSorting\KiloSort\eMouse\eMouse_simulation\'; % where on disk do you want the simulation? ideally and SSD...
 if ~exist(fpath, 'dir'); mkdir(fpath); end
 
 % This part adds paths
-addpath(genpath('D:\CODE\GitHub\copies\KiloSort')) % path to kilosort folder
-addpath(genpath('D:\CODE\GitHub\npy-matlab')) % path to npy-matlab scripts
-pathToYourConfigFile = 'D:\CODE\GitHub\copies\KiloSort\eMouse'; % for this example it's ok to leave this path inside the repo, but for your own config file you *must* put it somewhere else!  
+addpath(genpath('C:\SpikeSorting\KiloSort')) % path to kilosort folder
+addpath(genpath('C:\SpikeSorting\npy-matlab')) % path to npy-matlab scripts
+pathToYourConfigFile = 'C:\SpikeSorting\KiloSort\eMouse'; % for this example it's ok to leave this path inside the repo, but for your own config file you *must* put it somewhere else!  
 
 % Run the configuration file, it builds the structure of options (ops)
 run(fullfile(pathToYourConfigFile, 'config_eMouse.m'))
@@ -33,7 +33,7 @@ rez                = fullMPMU(rez, DATA);% extract final spike times (overlappin
 benchmark_simulation(rez, fullfile(fpath, 'eMouseGroundTruth.mat'));
 
 % save python results file for Phy
-mkdir preAutoMerge
+mkdir C:\SpikeSorting\KiloSort\eMouse\eMouse_simulation\preAutoMerge
 rezToPhy(rez, [fpath,'preAutoMerge\']);
 
 fprintf('Kilosort took %2.2f seconds vs 72.77 seconds on GTX 1080 + M2 SSD \n', toc)
@@ -54,7 +54,7 @@ rez = merge_posthoc2(rez);
 benchmark_simulation(rez, fullfile(fpath, 'eMouseGroundTruth.mat'));
 
 % save python results file for Phy
-mkdir postAutoMerge
+mkdir C:\SpikeSorting\KiloSort\eMouse\eMouse_simulation\postAutoMerge
 rezToPhy(rez, [fpath,'postAutoMerge\']);
 
 %% save and clean up
