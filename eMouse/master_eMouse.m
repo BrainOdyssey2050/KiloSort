@@ -4,40 +4,44 @@ fpath    = 'C:\SpikeSorting\KiloSort\eMouse\eMouse_simulation\'; % where on disk
 if ~exist(fpath, 'dir'); mkdir(fpath); end
 
 % This part adds paths
-addpath(genpath('C:\SpikeSorting\KiloSort')) % path to kilosort folder
+addpath(genpath('C:\SpikeSorting\KiloSort')) % path to kilosort folder                                                             % ? genpath,addpath
 addpath(genpath('C:\SpikeSorting\npy-matlab')) % path to npy-matlab scripts
-pathToYourConfigFile = 'C:\SpikeSorting\KiloSort\eMouse'; % for this example it's ok to leave this path inside the repo, but for your own config file you *must* put it somewhere else!  
+pathToYourConfigFile = 'C:\SpikeSorting\KiloSort\eMouse'; 
+% for this example it's ok to leave this path inside the repo, but for your own config file you *must* put it somewhere else!
 
+%%
 % Run the configuration file, it builds the structure of options (ops)
-run(fullfile(pathToYourConfigFile, 'config_eMouse.m'))
+run(fullfile(pathToYourConfigFile, 'config_eMouse.m'))                                                                             % ? run -> get a structure    
 
-% This part makes the channel map for this simulation
-make_eMouseChannelMap(fpath); 
+% This part makes the channel map for this simulation,in the simulation folder
+make_eMouseChannelMap(fpath);                                                                                                      % ?
 
-% This part simulates and saves data. There are many options you can change inside this 
-% function, if you want to vary the SNR or firing rates, or number of cells etc. 
+% This part simulates and saves data by using GPU. There are many options you can change inside this function, 
+% if you want to vary the SNR or firing rates, or number of cells etc. 
 % You can vary these to make the simulated data look more like your data.
 % Currently it is set to relatively low SNR for illustration purposes in Phy. 
-make_eMouseData(fpath, useGPU); 
-%
-% This part runs the normal Kilosort processing on the simulated data
-[rez, DATA, uproj] = preprocessData(ops); % preprocess data and extract spikes for initialization
-rez                = fitTemplates(rez, DATA, uproj);  % fit templates iteratively
-rez                = fullMPMU(rez, DATA);% extract final spike times (overlapping extraction)
+make_eMouseData(fpath, useGPU);                                                                                                    % ? output data shape
 
-% This runs the benchmark script. It will report both 1) results for the
-% clusters as provided by Kilosort (pre-merge), and 2) results after doing the best
-% possible merges (post-merge). This last step is supposed to
-% mimic what a user would do in Phy, and is the best achievable score
-% without doing splits. 
+%% This part runs the normal Kilosort processing on the simulated data
+[rez, DATA, uproj] = preprocessData(ops);             % preprocess data and extract spikes for initialization
+rez                = fitTemplates(rez, DATA, uproj);  % fit templates iteratively
+rez                = fullMPMU(rez, DATA);             % extract final spike times (overlapping extraction)
+
+%%
+% This runs the benchmark script. It will report both 
+% 1) results for the clusters as provided by Kilosort (pre-merge), and 
+% 2) results after doing the best possible merges (post-merge). 
+% This last step is supposed to mimic what a user would do in Phy, 
+% and is the best achievable score without doing splits. 
 benchmark_simulation(rez, fullfile(fpath, 'eMouseGroundTruth.mat'));
 
 % save python results file for Phy
-mkdir C:\SpikeSorting\KiloSort\eMouse\eMouse_simulation\preAutoMerge
+mkdir C:\SpikeSorting\KiloSort\eMouse\eMouse_simulation\preAutoMerge    % UPDATE: to full directory
 rezToPhy(rez, [fpath,'preAutoMerge\']);
 
 fprintf('Kilosort took %2.2f seconds vs 72.77 seconds on GTX 1080 + M2 SSD \n', toc)
 
+%% PHY
 % now fire up Phy and check these results. There should still be manual
 % work to be done (mostly merges, some refinements of contaminated clusters). 
 %% AUTO MERGES 
@@ -54,7 +58,7 @@ rez = merge_posthoc2(rez);
 benchmark_simulation(rez, fullfile(fpath, 'eMouseGroundTruth.mat'));
 
 % save python results file for Phy
-mkdir C:\SpikeSorting\KiloSort\eMouse\eMouse_simulation\postAutoMerge
+mkdir C:\SpikeSorting\KiloSort\eMouse\eMouse_simulation\postAutoMerge    % UPDATE: to full directory
 rezToPhy(rez, [fpath,'postAutoMerge\']);
 
 %% save and clean up

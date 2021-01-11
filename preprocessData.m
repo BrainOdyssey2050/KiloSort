@@ -2,30 +2,44 @@ function [rez, DATA, uproj] = preprocessData(ops)
 tic;
 uproj = [];
 ops.nt0 	= getOr(ops, {'nt0'}, 61);
+% v = getOr(s, field, [default]) returns the 'field' of the structure 's' or 'default' 
+%     if the structure is empty or the field does not exist.
+% In this case, since the field doesn't exsist, getOr will return 61, to the new defined field ops.nt0
 
 
-if strcmp(ops.datatype , 'openEphys')
-   ops = convertOpenEphysToRawBInary(ops);  % convert data, only for OpenEphys
+if strcmp(ops.datatype , 'openEphys')        % convert data, only for OpenEphys
+   ops = convertOpenEphysToRawBInary(ops);   % ? Not familiar with the func convertOpenEphysToRawBInary(ops)
 end
 
-if ~isempty(ops.chanMap)
+%% Channel Map loading, params configuration, and put params in the workspace to build structure 'rez'. 
+%  So, from self-setting params 'ops' to structure 'rez'
+if ~isempty(ops.chanMap)  % ops.chanMap = 'C:\SpikeSorting\KiloSort\eMouse\eMouse_simulation\chanMap.mat'
     if ischar(ops.chanMap)
         load(ops.chanMap);
         try
-            chanMapConn = chanMap(connected>1e-6);
-            xc = xcoords(connected>1e-6);
-            yc = ycoords(connected>1e-6);
+            chanMapConn = chanMap(connected>1e-6);  % connected in chanMap.mat: 34*1 logical. it is used to select channels. 
+                                                    % connected>1e-6: if the numbers in the connected are positive values, 
+                                                    %                 then the corresponding channels are selected.
+                                                  
+            xc = xcoords(connected>1e-6);           % xc, yc: x and y coordinates of each channel
+            yc = ycoords(connected>1e-6);           %         are newly defined arrays, which do not exsist in the chanMap.mat
         catch
             chanMapConn = 1+chanNums(connected>1e-6);
-            xc = zeros(numel(chanMapConn), 1);
+            xc = zeros(numel(chanMapConn), 1);      % numel: return number of array elements
             yc = [1:1:numel(chanMapConn)]';
         end
-        ops.Nchan    = getOr(ops, 'Nchan', sum(connected>1e-6));
-        ops.NchanTOT = getOr(ops, 'NchanTOT', numel(connected));
+        % try-catch-end executes the statements in the try block and catches resulting errors in the catch block. 
+        % This approach allows you to override the default error behavior for a set of program statements
+        % see https://www.mathworks.com/help/matlab/ref/try.html
+        
+        ops.Nchan    = getOr(ops, 'Nchan', sum(connected>1e-6));  % ops.Nchan = 32
+        ops.NchanTOT = getOr(ops, 'NchanTOT', numel(connected));  % ops.NchanTOT = 34
+        
         if exist('fs', 'var')
             ops.fs       = getOr(ops, 'fs', fs);
         end
-    else
+        
+    else    % if ops.chanMap is NOT a character array
         chanMap = ops.chanMap;
         chanMapConn = ops.chanMap;
         xc = zeros(numel(chanMapConn), 1);
@@ -35,7 +49,7 @@ if ~isempty(ops.chanMap)
         ops.Nchan    = numel(connected);
         ops.NchanTOT = numel(connected);
     end
-else
+else        % if ops.chanMap is empty, which means there is no way to find the channel map file, then we define the channel map and params by ourselves.
     chanMap  = 1:ops.Nchan;
     connected = true(numel(chanMap), 1);
     
@@ -43,19 +57,22 @@ else
     xc = zeros(numel(chanMapConn), 1);
     yc = [1:1:numel(chanMapConn)]';
 end
+
 if exist('kcoords', 'var')
-    kcoords = kcoords(connected);
+    kcoords = kcoords(connected);      % ? kcoords meaning. % Also selecting channels according to 'connected'
 else
     kcoords = ones(ops.Nchan, 1);
 end
-NchanTOT = ops.NchanTOT;
-NT       = ops.NT ;
 
+NchanTOT = ops.NchanTOT;               % put the params in parameter structure 'ops' to workspace
+NT       = ops.NT ;                    % ? NT Number of Time sample points
+
+%% Building structure 'rez'
 rez.ops         = ops;
 rez.xc = xc;
 rez.yc = yc;
 if exist('xcoords')
-   rez.xcoords = xcoords;
+   rez.xcoords = xcoords;              % xc is the channels after selection, xcoords are before selection
    rez.ycoords = ycoords;
 else
    rez.xcoords = xc;
@@ -65,7 +82,8 @@ rez.connected   = connected;
 rez.ops.chanMap = chanMap;
 rez.ops.kcoords = kcoords; 
 
-d = dir(ops.fbinary);
+%% Hardware checking, memory, buffer, etc.
+d = dir(ops.fbinary);                         % ? ops.fbinary, the raw dataset
 ops.sampsToRead = floor(d.bytes/NchanTOT/2);
 
 if ispc
@@ -84,21 +102,34 @@ Nbatch_buff = floor(4/5 * nint16s/rez.ops.Nchan /(NT-ops.ntbuff)); % factor of 4
 Nbatch_buff = min(Nbatch_buff, Nbatch);
 
 %% load data into patches, filter, compute covariance
-if isfield(ops,'fslow')&&ops.fslow<ops.fs/2
+% Step1. Filter construction
+if isfield(ops,'fslow')&&ops.fslow<ops.fs/2  % 1st, make sure 'fslow' is a field in the structure 'ops', fslow means low-pass freq 
+                                             % 2nd, the half of the sample rate of the raw signals, ops.fs/2, should be bigger than fslow
+                                             %    ,which is the constrain for fslow
+                                             % However, for now, there is no 'fslow' in the ops
     [b1, a1] = butter(3, [ops.fshigh/ops.fs,ops.fslow/ops.fs]*2, 'bandpass');
+                                             % Note: the second param in the butter is normalized cutoff frequency Wn.
+                                             % the freqs are normalized with fs/2
 else
-    [b1, a1] = butter(3, ops.fshigh/ops.fs*2, 'high');
+    [b1, a1] = butter(3, ops.fshigh/ops.fs*2, 'high'); % This is the case for this demo.
+                                                       % 3 order, high-pass butterworth with 200Hz cutoff freq
+                                                       % b1 and a1 are transfer function coefficients of the FILTER
 end
 
+% Step 2. Load the raw data
 fprintf('Time %3.0fs. Loading raw data... \n', toc);
 fid = fopen(ops.fbinary, 'r');
+
+% Step 3. Some configs before actual preporcessing
 ibatch = 0;
 Nchan = rez.ops.Nchan;
+
 if ops.GPU
-    CC = gpuArray.zeros( Nchan,  Nchan, 'single');
+    CC = gpuArray.zeros( Nchan,  Nchan, 'single');     % 32*32 GPU array,single
 else
     CC = zeros( Nchan,  Nchan, 'single');
 end
+
 if strcmp(ops.whitening, 'noSpikes')
     if ops.GPU
         nPairs = gpuArray.zeros( Nchan,  Nchan, 'single');
@@ -106,11 +137,14 @@ if strcmp(ops.whitening, 'noSpikes')
         nPairs = zeros( Nchan,  Nchan, 'single');
     end
 end
-if ~exist('DATA', 'var')
+
+if ~exist('DATA', 'var')                               % DATA exsists with 131136*32*191 int16, for now. What's inside exactly? 
     DATA = zeros(NT, rez.ops.Nchan, Nbatch_buff, 'int16');
 end
 
 isproc = zeros(Nbatch, 1);
+
+% Step 4
 while 1
     ibatch = ibatch + ops.nSkipCov;
     
