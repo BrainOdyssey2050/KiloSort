@@ -6,12 +6,13 @@ function S1 = my_min(S1, sig, varargin)
 
 idims = 2;
 if ~isempty(varargin)
-    idims = varargin{1};
+    idims = varargin{1};    % in eMouse, varargin = [1 2]
 end
+
 if numel(idims)>1 && numel(sig)>1
     sigall = sig;
 else
-    sigall = repmat(sig, numel(idims), 1);
+    sigall = repmat(sig, numel(idims), 1);  % sig = [3,1]
 end
 
 for i = 1:length(idims)
