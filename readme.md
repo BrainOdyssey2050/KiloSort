@@ -1,4 +1,5 @@
-## Kilosort2 has been released! Try it out [here](https://github.com/MouseLand/Kilosort2). ##
+## Kilosort source code with comments.
+# Although the performance of Kilosort's main algorithm is outstanding; the source has NO useful comments. So, this fork repo contains the Kilosort code with my comments. Hope it can help people who are struggling.
 
   
   
